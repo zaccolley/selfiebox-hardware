@@ -140,10 +140,11 @@ def checkForNewPrints():
   data = response.json()
   print data
 
-  requests.post(SERVER_URL_BASE + "/printing")
+  requests.post(SERVER_URL_BASE + "/printing?code=" + currentCode)
   print "Printing image..."
 
-  file = cStringIO.StringIO(requests.get(SERVER_URL_BASE + "/images/" + data["uploadedFileName"] + "?code=" + currentCode).content)
+  file = cStringIO.StringIO(requests.get(SERVER_URL_BASE + "/image?code=" + currentCode).content)
+  # TODO: handle if this isnt a image
   image = Image.open(file)
 
   printCode(printer, data["code"])
@@ -161,10 +162,11 @@ def checkForNewPrints():
 
   printer.printBarcode("EMFCAMP", printer.CODE39)
   printer.setBarcodeHeight(100)
-  printer.feed(3)
+  printer.feed(4)
 
   print "Printed..."
   requests.post(SERVER_URL_BASE + "/printed?code=" + currentCode)
+  print "current code: " + currentCode
   requests.post(SERVER_URL_BASE + "/generateNewCode?code=" + currentCode)
   checkForNewPrints()
 
