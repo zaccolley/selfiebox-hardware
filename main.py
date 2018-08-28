@@ -135,8 +135,6 @@ def checkForNewPrints():
       step=5,
       poll_forever=True)
 
-  printer.wake()
-
   data = response.json()
   print data
 
