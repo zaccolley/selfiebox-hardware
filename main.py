@@ -13,6 +13,9 @@ import inkyphat
 from PIL import Image, ImageFont
 from Adafruit_Thermal import *
 
+logoImage = Image.open(os.path.abspath("/home/pi/printer/selfieboxlogo.png"))
+
+
 def get_ip():
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   try:
@@ -36,9 +39,25 @@ MAX_CHAR_LEN = 32
 inkyphat.set_colour("black")
 printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout=5)
 
+
+def update_text_on_screen(text):
+  inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
+                     fill=inkyphat.BLACK, outline=inkyphat.BLACK)
+  font = ImageFont.truetype(os.path.abspath(
+      "/home/pi/printer/fonts/Source Code Pro_500.ttf"), 20)
+
+  message = text
+  w, h = font.getsize(message)
+  x = (inkyphat.WIDTH / 2) - (w / 2)
+  y = (inkyphat.HEIGHT / 2) - (h / 2)
+  inkyphat.text((x, y), message, inkyphat.WHITE, font)
+
+  inkyphat.show()
+
+
 def update_code_on_screen(code):
   inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
-                     fill=inkyphat.WHITE, outline=inkyphat.BLACK)
+                     fill=inkyphat.WHITE, outline=inkyphat.WHITE)
   font = ImageFont.truetype(os.path.abspath(
       "/home/pi/printer/fonts/Source Code Pro_600.ttf"), 75)
 
@@ -159,16 +178,20 @@ def check_for_new_prints():
 
   requests.post(SERVER_URL_BASE + "/printing?code=" + currentCode)
   print "Printing image..."
+  update_text_on_screen('Printing...')
 
   file = cStringIO.StringIO(requests.get(
       SERVER_URL_BASE + "/image?code=" + currentCode).content)
   # TODO: handle if this isnt a image
   image = Image.open(file)
 
+  printer.printImage(logoImage, True)
+  printer.feed(1)
+
   printer.justify('C')
 
-  printer.println(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-  printer.feed(1)
+  printer.println(datetime.datetime.now().strftime("%d-%m-%Y %H:%M"))
+  printer.feed(2)
 
   printer.justify('L')
 
@@ -179,9 +202,6 @@ def check_for_new_prints():
     print_meta_data(printer, data)
     printer.feed(1)
 
-  logoImage = Image.open(os.path.abspath("/home/pi/printer/selfieboxlogo.png"))
-  printer.printImage(logoImage, True)
-
   printer.printBarcode("SLFEBOX", printer.CODE39)
   printer.feed(3)
 
@@ -191,5 +211,5 @@ def check_for_new_prints():
   requests.post(SERVER_URL_BASE + "/generateNewCode?code=" + currentCode)
   check_for_new_prints()
 
-
+update_text_on_screen('Hello World')
 check_for_new_prints()  # initial one to start us off
