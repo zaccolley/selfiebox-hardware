@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 from settings import SERIAL_PORT, SERVER_URL_BASE, PRINTER_SECRET
+import socket
+import os
 import urllib
 import cStringIO
 import json
@@ -11,23 +13,43 @@ import inkyphat
 from PIL import Image, ImageFont
 from Adafruit_Thermal import *
 
+def get_ip():
+  s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+  try:
+    # doesn't even have to be reachable
+    s.connect(('10.255.255.255', 1))
+    IP = s.getsockname()[0]
+  except:
+    IP = '127.0.0.1'
+  finally:
+    s.close()
+  return IP
+
+
+# send ip address to server
+print "Send request to server for IP address"
+requests.post(SERVER_URL_BASE + '/ip?address=' +
+              get_ip() + '&secret=' + PRINTER_SECRET)
+
 MAX_CHAR_LEN = 32
 
 inkyphat.set_colour("black")
 printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout=5)
 
-def updateCode (code):
-  inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT), fill=inkyphat.BLACK, outline=inkyphat.BLACK)
-
-  font = ImageFont.truetype("fonts/Source Code Pro_600.ttf", 80)
+def update_code_on_screen(code):
+  inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
+                     fill=inkyphat.WHITE, outline=inkyphat.BLACK)
+  font = ImageFont.truetype(os.path.abspath(
+      "/home/pi/printer/fonts/Source Code Pro_600.ttf"), 75)
 
   message = code
   w, h = font.getsize(message)
   x = (inkyphat.WIDTH / 2) - (w / 2)
   y = (inkyphat.HEIGHT / 2) - (h / 2) - 10
-  inkyphat.text((x, y), message, inkyphat.WHITE, font)
+  inkyphat.text((x, y), message, inkyphat.BLACK, font)
 
   inkyphat.show()
+
 
 def print_with_padding(type, text):
   fillerCharsLen = MAX_CHAR_LEN - len(text)
@@ -39,8 +61,9 @@ def print_with_padding(type, text):
   if type == 'right':
     printer.println(fillerChars + text)
     return
-  
+
   printer.println(text)
+
 
 def print_with_two_parts(leftText, rightText):
   if (len(leftText) + len(rightText)) < MAX_CHAR_LEN:
@@ -58,14 +81,8 @@ def print_with_two_parts(leftText, rightText):
     else:
       print_with_padding('right', rightText)
 
-def printCode(printer, code):
-  printer.justify('R')
-  printer.setSize('L')
-  printer.println(code)
-  printer.justify('L')
-  printer.setSize('S')
 
-def printMetaData(printer, data):
+def print_meta_data(printer, data):
   printer.justify('C')
   printer.doubleHeightOn()
   if data["isDoNotTrackEnabled"] == True:
@@ -116,10 +133,12 @@ def printMetaData(printer, data):
   resolution = data["fingerprint"]["resolution"]
   print_with_two_parts("Screen", str(resolution[0]) + "x" + str(resolution[1]))
 
-def checkForNewPrints():
-  currentCode = requests.get(SERVER_URL_BASE + "/code?secret=" + PRINTER_SECRET).text
+
+def check_for_new_prints():
+  currentCode = requests.get(
+      SERVER_URL_BASE + "/code?secret=" + PRINTER_SECRET).text
   print "Updating code to " + currentCode
-  updateCode(currentCode)
+  update_code_on_screen(currentCode)
   print "Code updated "
 
   requests.post(SERVER_URL_BASE + "/printed?code=" + currentCode)
@@ -141,31 +160,36 @@ def checkForNewPrints():
   requests.post(SERVER_URL_BASE + "/printing?code=" + currentCode)
   print "Printing image..."
 
-  file = cStringIO.StringIO(requests.get(SERVER_URL_BASE + "/image?code=" + currentCode).content)
+  file = cStringIO.StringIO(requests.get(
+      SERVER_URL_BASE + "/image?code=" + currentCode).content)
   # TODO: handle if this isnt a image
   image = Image.open(file)
 
-  printCode(printer, data["code"])
+  printer.justify('C')
+
+  printer.println(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
   printer.feed(1)
 
-  printer.println(datetime.datetime.now().isoformat())
-  printer.feed(1)
+  printer.justify('L')
 
   printer.printImage(image, True)
   printer.feed(1)
 
   if data["printMetaData"]:
-    printMetaData(printer, data)
+    print_meta_data(printer, data)
     printer.feed(1)
 
-  printer.printBarcode("EMFCAMP", printer.CODE39)
-  printer.setBarcodeHeight(100)
-  printer.feed(4)
+  logoImage = Image.open(os.path.abspath("/home/pi/printer/selfieboxlogo.png"))
+  printer.printImage(logoImage, True)
+
+  printer.printBarcode("SLFEBOX", printer.CODE39)
+  printer.feed(3)
 
   print "Printed..."
   requests.post(SERVER_URL_BASE + "/printed?code=" + currentCode)
   print "current code: " + currentCode
   requests.post(SERVER_URL_BASE + "/generateNewCode?code=" + currentCode)
-  checkForNewPrints()
+  check_for_new_prints()
 
-checkForNewPrints() # initial one to start us off
+
+check_for_new_prints()  # initial one to start us off
