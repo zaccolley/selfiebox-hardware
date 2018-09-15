@@ -1,8 +1,12 @@
 #!/usr/bin/python
 
 from settings import SERIAL_PORT
+import os
 from Adafruit_Thermal import *
+from PIL import Image
 
+DIRNAME = os.path.dirname(__file__)
+LOGO_IMAGE = Image.open(os.path.join(DIRNAME, "selfieboxlogo.png"))
 printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout = 5)
 
 # Test inverse on & off
@@ -54,15 +58,8 @@ printer.setBarcodeHeight(100)
 # Print UPC line on product barcodes
 printer.printBarcode("123456789123", printer.UPC_A)
 
-# Print the 75x75 pixel logo in adalogo.py
-import gfx.adalogo as adalogo
-printer.printBitmap(adalogo.width, adalogo.height, adalogo.data)
-
-# Print the 135x135 pixel QR code in adaqrcode.py
-import gfx.adaqrcode as adaqrcode
-printer.printBitmap(adaqrcode.width, adaqrcode.height, adaqrcode.data)
-printer.println("Adafruit!")
-printer.feed(2)
+printer.printImage(LOGO_IMAGE, True)
+printer.feed(1)
 
 printer.sleep()      # Tell printer to sleep
 printer.wake()       # Call wake() before printing again, even if reset

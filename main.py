@@ -119,6 +119,7 @@ serverURL = SERVER_URL_BASE + '/ip?address=' + get_ip() + '&secret=' + PRINTER_S
 requests.post(serverURL)
 
 # set the screen to current datetime to show it's booted the script
+print "Updating screen with current date"
 update_text_on_screen(
   datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
 )
