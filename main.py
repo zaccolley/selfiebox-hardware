@@ -13,9 +13,20 @@ import inkyphat
 from PIL import Image, ImageFont
 from Adafruit_Thermal import *
 
-dirname = os.path.dirname(__file__)
+inkyphat.set_colour("black")
 
-logoImage = Image.open(os.path.join(dirname, "selfieboxlogo.png"))
+DIRNAME = os.path.dirname(__file__)
+LOGO_IMAGE = Image.open(os.path.join(DIRNAME, "selfieboxlogo.png"))
+FONT_MEDIUM = ImageFont.truetype(
+  os.path.join(DIRNAME, "fonts/Source Code Pro_500.ttf"),
+  20
+)
+FONT_BOLD = ImageFont.truetype(
+  os.path.join(DIRNAME, "fonts/Source Code Pro_600.ttf"), 
+  75
+)
+
+printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout=5)
 
 def get_ip():
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -29,133 +40,30 @@ def get_ip():
     s.close()
   return IP
 
-
-# send ip address to server
-print "Send request to server for IP address"
-requests.post(SERVER_URL_BASE + '/ip?address=' +
-              get_ip() + '&secret=' + PRINTER_SECRET)
-
-MAX_CHAR_LEN = 32
-
-inkyphat.set_colour("black")
-printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout=5)
-
-
-def update_text_on_screen(text):
-  inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
-                     fill=inkyphat.BLACK, outline=inkyphat.BLACK)
-  font = ImageFont.truetype(os.path.join(dirname, "fonts/Source Code Pro_500.ttf"), 20)
+def update_screen(text, xOffset, yOffset, backgroundColor, foregroundColor, font):
+  inkyphat.rectangle(
+    (0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
+    fill=backgroundColor,
+    outline=backgroundColor
+  )
 
   message = text
   w, h = font.getsize(message)
-  x = (inkyphat.WIDTH / 2) - (w / 2)
-  y = (inkyphat.HEIGHT / 2) - (h / 2)
-  inkyphat.text((x, y), message, inkyphat.WHITE, font)
+  x = (inkyphat.WIDTH / 2) - (w / 2) + xOffset
+  y = (inkyphat.HEIGHT / 2) - (h / 2) + yOffset
+  inkyphat.text((x, y), message, foregroundColor, font)
 
   inkyphat.show()
 
+def update_text_on_screen(text):
+  update_screen(text, 0, 0, inkyphat.BLACK, inkyphat.WHITE, FONT_MEDIUM)
 
 def update_code_on_screen(code):
-  inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
-                     fill=inkyphat.WHITE, outline=inkyphat.WHITE)
-
-  font = ImageFont.truetype(os.path.join(dirname, "fonts/Source Code Pro_600.ttf"), 75)
-
-  message = code
-  w, h = font.getsize(message)
-  x = (inkyphat.WIDTH / 2) - (w / 2)
-  y = (inkyphat.HEIGHT / 2) - (h / 2) - 10
-  inkyphat.text((x, y), message, inkyphat.BLACK, font)
-
-  inkyphat.show()
-
-
-def print_with_padding(type, text):
-  fillerCharsLen = MAX_CHAR_LEN - len(text)
-  fillerChars = "." * fillerCharsLen
-
-  if type == 'left':
-    printer.println(text + fillerChars)
-    return
-  if type == 'right':
-    printer.println(fillerChars + text)
-    return
-
-  printer.println(text)
-
-
-def print_with_two_parts(leftText, rightText):
-  if (len(leftText) + len(rightText)) < MAX_CHAR_LEN:
-    fillerCharsLen = MAX_CHAR_LEN - len(leftText) - len(rightText)
-    fillerChars = "." * fillerCharsLen
-    printer.println(leftText + fillerChars + rightText)
-  else:
-    if len(leftText) > MAX_CHAR_LEN:
-      printer.println(leftText)
-    else:
-      print_with_padding('left', leftText)
-
-    if len(rightText) > MAX_CHAR_LEN:
-      printer.println(rightText)
-    else:
-      print_with_padding('right', rightText)
-
-
-def print_meta_data(printer, data):
-  printer.justify('C')
-  printer.doubleHeightOn()
-  if data["isDoNotTrackEnabled"] == True:
-    printer.inverseOn()
-    printer.println(' DO NOT TRACK: DISABLED ')
-    printer.inverseOff()
-  else:
-    printer.println(' DO NOT TRACK: ENABLED ')
-  printer.doubleHeightOff()
-  printer.feed(1)
-
-  printer.justify('L')
-
-  if data["exif"]:
-    printer.setSize('L')
-    printer.println('Camera')
-    printer.setSize('S')
-
-    print_with_two_parts('Make', data["exif"]["make"])
-    print_with_two_parts('Model', data["exif"]["model"])
-    print_with_two_parts('Flash', data["exif"]["flash"])
-    printer.feed(1)
-
-  printer.setSize('M')
-  printer.println('Device')
-  printer.setSize('S')
-
-  if data["browser"]:
-    print_with_two_parts("Browser", data["browser"])
-
-  if data["operatingSystem"]:
-    print_with_two_parts("Operating System", data["operatingSystem"])
-
-  if data["device"]:
-    print_with_two_parts("Name", data["device"])
-
-  if data["language"]:
-    print_with_two_parts("Language", data["language"])
-
-  if data["country"]:
-    print_with_two_parts("Country", data["country"])
-
-  if data["fingerprint"]["adblockEnabled"]:
-    print_with_two_parts("AdBlock", "Enabled")
-  else:
-    print_with_two_parts("AdBlock", "Disabled")
-
-  resolution = data["fingerprint"]["resolution"]
-  print_with_two_parts("Screen", str(resolution[0]) + "x" + str(resolution[1]))
+  update_screen(code, 0, -10, inkyphat.WHITE, inkyphat.BLACK, FONT_BOLD)
 
 
 def check_for_new_prints():
-  currentCode = requests.get(
-      SERVER_URL_BASE + "/code?secret=" + PRINTER_SECRET).text
+  currentCode = requests.get(SERVER_URL_BASE + "/code?secret=" + PRINTER_SECRET).text
   print "Updating code to " + currentCode
   update_code_on_screen(currentCode)
   print "Code updated "
@@ -180,12 +88,10 @@ def check_for_new_prints():
   print "Printing image..."
   update_text_on_screen('Printing...')
 
-  file = cStringIO.StringIO(requests.get(
-      SERVER_URL_BASE + "/image?code=" + currentCode).content)
-  # TODO: handle if this isnt a image
+  file = cStringIO.StringIO(requests.get(SERVER_URL_BASE + "/image?code=" + currentCode).content)
   image = Image.open(file)
 
-  printer.printImage(logoImage, True)
+  printer.printImage(LOGO_IMAGE, True)
   printer.feed(1)
 
   printer.justify('C')
@@ -198,10 +104,6 @@ def check_for_new_prints():
   printer.printImage(image, True)
   printer.feed(1)
 
-  if data["printMetaData"]:
-    print_meta_data(printer, data)
-    printer.feed(1)
-
   printer.printBarcode("SLFEBOX", printer.CODE39)
   printer.feed(3)
 
@@ -211,5 +113,15 @@ def check_for_new_prints():
   requests.post(SERVER_URL_BASE + "/generateNewCode?code=" + currentCode)
   check_for_new_prints()
 
-update_text_on_screen('Hello World')
-check_for_new_prints()  # initial one to start us off
+# send ip address to server
+print "Send request to server for IP address"
+serverURL = SERVER_URL_BASE + '/ip?address=' + get_ip() + '&secret=' + PRINTER_SECRET
+requests.post(serverURL)
+
+# set the screen to current datetime to show it's booted the script
+update_text_on_screen(
+  datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
+)
+
+# initial one to start us off
+check_for_new_prints() 
