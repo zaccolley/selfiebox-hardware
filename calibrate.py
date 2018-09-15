@@ -20,10 +20,11 @@
 # and/or just abort the program, press the feed button and take the
 # last good number.
 
+from settings import SERIAL_PORT
 from __future__ import print_function
 from Adafruit_Thermal import *
 
-printer = Adafruit_Thermal("/dev/serial/by-path/platform-20980000.usb-usb-0:1:1.0-port0", 19200, timeout=5)
+printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout=5)
 
 for i in range(0,256,15):
 	printer.begin(i)

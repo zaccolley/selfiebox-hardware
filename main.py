@@ -13,8 +13,9 @@ import inkyphat
 from PIL import Image, ImageFont
 from Adafruit_Thermal import *
 
-logoImage = Image.open(os.path.abspath("/home/pi/printer/selfieboxlogo.png"))
+dirname = os.path.dirname(__file__)
 
+logoImage = Image.open(os.path.join(dirname, "selfieboxlogo.png"))
 
 def get_ip():
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -43,8 +44,7 @@ printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout=5)
 def update_text_on_screen(text):
   inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
                      fill=inkyphat.BLACK, outline=inkyphat.BLACK)
-  font = ImageFont.truetype(os.path.abspath(
-      "/home/pi/printer/fonts/Source Code Pro_500.ttf"), 20)
+  font = ImageFont.truetype(os.path.join(dirname, "fonts/Source Code Pro_500.ttf"), 20)
 
   message = text
   w, h = font.getsize(message)
@@ -58,8 +58,8 @@ def update_text_on_screen(text):
 def update_code_on_screen(code):
   inkyphat.rectangle((0, 0, inkyphat.WIDTH, inkyphat.HEIGHT),
                      fill=inkyphat.WHITE, outline=inkyphat.WHITE)
-  font = ImageFont.truetype(os.path.abspath(
-      "/home/pi/printer/fonts/Source Code Pro_600.ttf"), 75)
+
+  font = ImageFont.truetype(os.path.join(dirname, "fonts/Source Code Pro_600.ttf"), 75)
 
   message = code
   w, h = font.getsize(message)

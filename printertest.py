@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
+from settings import SERIAL_PORT
 from Adafruit_Thermal import *
 
-printer = Adafruit_Thermal("/dev/serial/by-path/platform-20980000.usb-usb-0:1:1.0-port0", 19200, timeout=5)
+printer = Adafruit_Thermal(SERIAL_PORT, 19200, timeout = 5)
 
 # Test inverse on & off
 printer.inverseOn()
